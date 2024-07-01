@@ -1,0 +1,7 @@
+tags
+.luarc.json
+spell/
+
+*.un~
+*.swp~
+

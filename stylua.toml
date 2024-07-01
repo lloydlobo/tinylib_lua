@@ -1,0 +1,34 @@
+# file: stylua.toml
+
+
+# $ fd --extension lua . | entr -cpr xargs stylua *.lua --verbose
+#
+#	...
+# 	debug: config: Config {
+# 	    column_width: 120,
+# 	    line_endings: Unix,
+# 	    indent_type: Tabs,
+# 	    indent_width: 4,
+# 	    quote_style: AutoPreferDouble,
+# 	    no_call_parentheses: false,
+# 	    call_parentheses: Always,
+# 	    collapse_simple_statement: Never,
+# 	    sort_requires: SortRequiresConfig {
+# 	        enabled: false,
+# 	    },
+# 	}
+# 	debug: creating a pool with 4 threads
+# 	debug: formatted logger.lua in 7.77302ms
+# 	debug: formatted main.lua in 8.290589ms
+# 	debug: formatted test.lua in 6.861379ms
+# 	debug: formatted basic.lua in 16.65362ms
+
+call_parentheses = "None"
+collapse_simple_statement = "Always" # Choices: `Never`, `FunctionOnly`, `ConditionalOnly`, `Always`
+column_width = 160
+indent_type = "Spaces"
+indent_width = 4
+line_endings = "Unix"
+quote_style = "AutoPreferSingle"
+
+
