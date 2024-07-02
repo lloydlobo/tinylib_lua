@@ -1,0 +1,90 @@
+#+title: Archive of tinylib_lua
+#+author: Lloyd Lobo (tinylib.org)
+
+* tinylib.lua
+
+** 20240702053449UTC 
+
+#+begin_src lua
+  if nil then
+      local case
+      local curCaseLen
+      local maxCases = {}
+      local minCases = {}
+      local maxCaseLen = -1
+      local minCaseLen = math.huge
+  
+      for i = 1, #cases do
+          case = cases[i]
+          curCaseLen = #case
+  
+          if curCaseLen > maxCaseLen then
+              table.insert(maxCases, i)
+              maxCaseLen = curCaseLen
+          end
+  
+          if curCaseLen < minCaseLen then
+              if #minCases then table.remove(minCases, 1) end
+              table.insert(minCases, i)
+              minCaseLen = curCaseLen
+          end
+  
+          print(i, case, curCaseLen, maxCaseLen, minCaseLen)
+      end
+  
+      assert(#maxCases == 1, 'expected all cases except default case to have same count of args in Match')
+      assert(#minCases == 1, 'expected only one default case in Match')
+  
+      print('minCases:', table.concat(minCases, ', '), 'maxCases:', table.concat(maxCases, ', '))
+  
+      local defaultCaseIndex = minCases[1]
+  
+      assert(type(defaultCaseIndex) == 'number')
+      assert(defaultCaseIndex >= 1 and defaultCaseIndex <= #cases)
+  
+      local default = cases[defaultCaseIndex]
+      local defaultCase, DefaultFun = default[1], default[2]
+      assert(default[3] == nil)
+      print(defaultCase, DefaultFun)
+      assert(defaultCase == 'default' and type(DefaultFun) == 'function')
+      print(pcall(DefaultFun))
+  end
+#+end_src
+
+** 20240702045429UTC
+
+#+begin_src lua
+  local function createOptimizedMatcher(cases)
+      local code = [[
+          return function(a, b, c)
+              if false then
+      ]]
+      for _, case in ipairs(cases) do
+          code = code .. string.format([[
+              elseif %s and %s and %s then
+                  %s
+          ]],
+              case[1] and ("a == " .. tostring(case[1])) or "true",
+              case[2] and ("b == " .. tostring(case[2])) or "true",
+              case[3] and ("c == " .. tostring(case[3])) or "true",
+              string.format("(function() %s end)()", case[4])
+          )
+      end
+      code = code .. [[
+              end
+          end
+      ]]
+      return load(code)()
+  end
+  
+  -- Usage:
+  local match = createOptimizedMatcher({
+      {1, 2, 3, "print('Matched 1, 2, 3')"},
+      {4, 5, 6, "print('Matched 4, 5, 6')"},
+      {nil, nil, nil, "print('Default case')"}
+  })
+  
+  match(1, 2, 3)
+  match(4, 5, 6)
+  match(7, 8, 9)
+#end_src

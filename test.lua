@@ -2,12 +2,33 @@
 
 -- TOP
 
+local tinylib = require 'tinylib'
+
 local clock = os.clock
 
-local tinylib = require 'lib'
+---
+---Map each item in table `arr` to string and concatenate all items into a string
+---with `sep` separator.
+---@package
+---@param arr table
+---@param sep string?
+---@return string
+---@nodiscard
+local MapStr = function(arr, sep)
+    sep = sep or ', '
 
+    local t = {}
+    for _, value in pairs(arr) do
+        table.insert(t, tostring(value))
+    end
+
+    return table.concat(t, sep)
+end
+
+---
+---@package
 local function TestModRequires()
-    do -- Test mod tinylib
+    if true then -- Test mod tinylib
         print(clock(), 'module tinylib:', tinylib)
 
         for key, value in pairs(tinylib) do
@@ -15,7 +36,38 @@ local function TestModRequires()
         end
     end
 
-    if nil then -- Test `Switch` vs native *switch-case* with tables
+    if true then
+        local Match = tinylib.Match
+        do -- Test `Match` with multiple args
+            local a, b, c = 1, 2, 3
+
+            local args = { a, b, c }
+
+            if true then print(clock(), a, b, c) end
+
+            Match(a, b, c) {
+                { 1, 2, 3, function() print(clock(), 'matched ' .. MapStr(args)) end },
+                { 1, 2, 3, function() print(clock(), 'matched ' .. MapStr(args)) end },
+                { 4, 5, 6, function() print(clock(), 'matched ' .. MapStr(args)) end },
+                { 7, 8, 9, function() print(clock(), 'matched ' .. MapStr(args)) end },
+                { 10, 11, 12, function() print(clock(), 'matched ' .. MapStr(args)) end },
+                { 111, 222, 333, function() print(clock(), 'matched ' .. MapStr(args)) end },
+                { 'default', function() print(clock(), 'matched default ' .. MapStr { a, b, c }) end },
+            }
+
+            a, b, c = 11, 0, 11
+            Match(a, b, c) {
+                { 1, 2, 3, function() print(clock(), 'matched ' .. MapStr(args)) end },
+                { 4, 5, 6, function() print(clock(), 'matched ' .. MapStr(args)) end },
+                { 7, 8, 9, function() print(clock(), 'matched ' .. MapStr(args)) end },
+                { 10, 11, 12, function() print(clock(), 'matched ' .. MapStr(args)) end },
+                { 111, 222, 333, function() print(clock(), 'matched ' .. MapStr(args)) end },
+                { 'default', function() print(clock(), 'matched default ' .. MapStr { a, b, c }) end },
+            }
+        end
+    end
+
+    if true then -- Test `Switch` vs native *switch-case* with tables
         do
             local switch = tinylib.Switch
             print(clock(), 'module tinylib: Switch:', switch)
@@ -33,7 +85,7 @@ local function TestModRequires()
             }
         end
 
-        do
+        if nil then
             local value = 9
 
             local switch = {
@@ -54,7 +106,7 @@ local function TestModRequires()
         end
     end
 
-    do -- Test `Iter` iterators
+    if true then -- Test `Iter` iterators
         local iter = tinylib.iter
         print(clock(), 'module tinylib:', 'iter:', tinylib.iter)
 
@@ -91,12 +143,15 @@ local function TestModRequires()
     end
 end
 
+---
+---@package
 local function TestAll()
     do
         TestModRequires()
     end
 end
 
+-- Run All Tests
 do
     if true then TestAll() end
 end

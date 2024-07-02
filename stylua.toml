@@ -1,34 +1,50 @@
 # file: stylua.toml
 
-
 # $ fd --extension lua . | entr -cpr xargs stylua *.lua --verbose
+#       ...
+#       debug: config: Config {
+#           column_width: 120,
+#           line_endings: Unix,
+#           indent_type: Tabs,
+#           indent_width: 4,
+#           quote_style: AutoPreferDouble,
+#           no_call_parentheses: false,
+#           call_parentheses: Always,
+#           collapse_simple_statement: Never,
+#           sort_requires: SortRequiresConfig {
+#               enabled: false,
+#           },
+#       }
+#       debug: creating a pool with 4 threads
+#       debug: formatted logger.lua in 7.77302ms
+#       debug: formatted main.lua in 8.290589ms
+#       debug: formatted test.lua in 6.861379ms
+#       debug: formatted basic.lua in 16.65362ms
+
+column_width = 160  # Default: 120
+line_endings = "Unix"  # Default: `Unix`
+indent_type = "Spaces"  # Choices: `Tabs`, `Spaces`
+indent_width = 4  # Default: 4
+quote_style = "AutoPreferSingle"  # Choices: `AutoPreferDouble`, `AutoPreferSingle`
+call_parentheses = "None"  # Choices: `Always`, `None`
+collapse_simple_statement = "Always"  # Choices: `Never`, `FunctionOnly`, `ConditionalOnly`, `Always`
+
+[sort_requires]
+enabled = true  # Default: false
+
+# To skip formatting: ~
+# ```lua
+#   -- stylua: ignore
+#   local matrix = {
+#       { 0, 0, 0 },
+#       { 0, 0, 0 },
+#       { 0, 0, 0 },
+#   }
 #
-#	...
-# 	debug: config: Config {
-# 	    column_width: 120,
-# 	    line_endings: Unix,
-# 	    indent_type: Tabs,
-# 	    indent_width: 4,
-# 	    quote_style: AutoPreferDouble,
-# 	    no_call_parentheses: false,
-# 	    call_parentheses: Always,
-# 	    collapse_simple_statement: Never,
-# 	    sort_requires: SortRequiresConfig {
-# 	        enabled: false,
-# 	    },
-# 	}
-# 	debug: creating a pool with 4 threads
-# 	debug: formatted logger.lua in 7.77302ms
-# 	debug: formatted main.lua in 8.290589ms
-# 	debug: formatted test.lua in 6.861379ms
-# 	debug: formatted basic.lua in 16.65362ms
-
-call_parentheses = "None"
-collapse_simple_statement = "Always" # Choices: `Never`, `FunctionOnly`, `ConditionalOnly`, `Always`
-column_width = 160
-indent_type = "Spaces"
-indent_width = 4
-line_endings = "Unix"
-quote_style = "AutoPreferSingle"
-
-
+#   local foo = true
+#   -- stylua: ignore start
+#   local   bar   =   false
+#   local  baz      = 0
+#   -- stylua: ignore end
+#   local foobar = false
+# ```
