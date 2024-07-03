@@ -3,6 +3,234 @@
 
 * tinylib.lua
 
+** 20240703021153UTC
+
+#+begin_src lua
+  local IS_VERBOSE = false
+  local IS_OPTIMIZED = true
+  
+  local M
+  M = {
+      NoOp = function() end,
+      emptyblock = [[if nil then end]],
+      mathlib = {
+          Round = function(num) return math.floor(num + 0.5) end,
+          RoundPro = function(num, numDecimalPlaces)
+              local mult = 10 ^ (numDecimalPlaces or 0)
+              return (math.floor((num * mult) + 0.5) / mult)
+          end,
+          NegativeModulo = function(a, b) return (((a % b) + b) % b) end,
+      },
+      errors = {
+          InvalidParamType = function(context, want, got, code)
+              error(
+                  'invalid value type passed.' .. ' context: ~ ' .. context and context
+                      or 'N.A.' .. ' want: ~ ' .. want and want
+                      or 'N.A.' .. ' got: ~ ' .. got and got
+                      or 'N.A.',
+                  code and code or 1
+              )
+          end,
+          StatusFailed = function(context, code) error('status failed.' .. ' context: ~ ' .. context and context or 'N.A.', code and code or 1) end,
+          Unimplemented = function(context, code) error('unimplemented.' .. ' context: ~ ' .. context and context or 'N.A.', code and code or 1) end,
+      },
+      Match = function(...)
+          local args = { ... } ---@type unknown[]
+          return function(cases)
+              local defaultCaseExpr = nil ---@type function|unknown|nil
+              local matchedCaseExpr = nil ---@type function|unknown|nil
+              local foundNoMatches = nil ---@type boolean|nil
+              for _, case in ipairs(cases) do
+                  assert(type(case) == 'table')
+                  if case[1] == 'default' then
+                      defaultCaseExpr = case[2]
+                  elseif #case == #args + 1 then -- TODO: Use `argsCount` instead of `#args`
+                      local match = true
+                      for i = 1, #args do
+                          if args[i] ~= case[i] then
+                              match = false
+                              break
+                          end
+                      end
+                      if not match then
+                          foundNoMatches = true -- NOTE(Lloyd): Error checking done at scope end if no default case found
+                          if defaultCaseExpr ~= nil and matchedCaseExpr ~= nil then break end -- PERF: Break early
+                      else
+                          assert(matchedCaseExpr == nil, 'unimplemented: multiple matching cases are not handled yet: ~\n' .. string.format('\tin #case: %s: ~\n\t{ args..., fu }: { %s, %s }', #case, table.concat(case, ', ', 1, #case - 1), case[#case]))
+                          foundNoMatches = false
+                          matchedCaseExpr = case[#case]
+                          if defaultCaseExpr ~= nil then break end -- PERF: Break early
+                      end
+                  end
+              end
+              assert((defaultCaseExpr ~= nil), 'compile error: ' .. '`Match` requires a `{"default", ...}` case') -- Similar to *compile-time error*
+              if matchedCaseExpr ~= nil then return type(matchedCaseExpr) == 'function' and matchedCaseExpr() or matchedCaseExpr end
+              assert(foundNoMatches, 'unreachable: `Match` internal error') -- Similar to *runtime error*
+              if defaultCaseExpr ~= nil then return type(defaultCaseExpr) == 'function' and defaultCaseExpr() or defaultCaseExpr end
+              assert(nil, 'unreachable: `Match` internal error') -- Similar to *runtime error*
+          end -- end return function(...)
+      end,
+      MatchCo = function(...)
+          local args = { ... } ---@type unknown[]
+          local argsCount = select('#', ...)
+          MatchingCaseErrorMsg = function(c)
+              return 'unimplemented: multiple matching cases are not handled yet: ~\n' .. string.format('\tin #case: %s: ~\n\t{ args..., fu }: { %s, %s }', #c, table.concat(c, ', ', 1, #c - 1), c[#c])
+          end
+          return function(cases)
+              local defaultExpr = nil ---@type function|unknown|nil
+              local caseExpr = nil ---@type function|unknown|nil
+              local foundNoCaseMatches = nil ---@type boolean|nil
+              local ProcessCase = function(case)
+                  if type(case) ~= 'table' then M.errors.InvalidParamType('in ProcessCase: type of `case` must be a `table`', 'table', type(case), 1) end
+                  if case[1] == 'default' then
+                      defaultExpr = case[2] -- Match found the ['default'] case!
+                  elseif #case == (argsCount + 1) then
+                      local match = true
+                      for i = 1, argsCount do
+                          if args[i] ~= case[i] then match=false; break; end
+                      end
+                      if not match then
+                          foundNoCaseMatches = true -- NOTE(Lloyd): Error checking done at scope end if no default case found
+                      else
+                          if caseExpr ~= nil then error(MatchingCaseErrorMsg(case)) end -- NOTE(Lloyd): Sanity check for multiple matching cases
+                          caseExpr = case[#case]
+                          foundNoCaseMatches = false
+                      end
+                  end
+              end
+              for index, case in ipairs(cases) do
+                  local co = coroutine.create(function() return ProcessCase(case) end)
+                  if not IS_VERBOSE and IS_OPTIMIZED then
+                      coroutine.resume(co)
+                      if defaultExpr ~= nil and caseExpr ~= nil then break end
+                  else
+                      local success, result = coroutine.resume(co)
+                      if not success then
+                          error(string.format('[  FAIL  ]\ti: %2d\t\ttook %.5fs\n', index, os.clock()))
+                      else
+                          io.write(string.format('[  OKAY  ]\ti: %2d\t\ttook %.5fs\n', index, os.clock()))
+                          io.write(string.format('[  RESP  ]\ti: %2d\t\tres: %s\ttook %.5fs\n', index, result, os.clock()))
+                      end
+                      if not IS_OPTIMIZED then
+                          if defaultExpr ~= nil and caseExpr ~= nil then
+                              print('[  BRKL  ]' .. '\ti: ' .. index .. '\t\ttook ' .. os.clock() .. 's')
+                              break
+                          end
+                      else
+                          if caseExpr ~= nil then
+                              print('[  BRKL  ]' .. '\ti: ' .. index .. '\t\ttook ' .. os.clock() .. 's')
+                              break
+                          end
+                      end
+                  end
+              end
+              if (not IS_OPTIMIZED) and not (defaultExpr ~= nil) then error 'compile error: `Match` requires a `{"default", ...}` case' end
+              if caseExpr then return type(caseExpr) == 'function' and caseExpr() or caseExpr end -- not nil
+              if not IS_OPTIMIZED then
+                  if not foundNoCaseMatches then error 'unreachable: `Match` internal error' end
+              end
+              if defaultExpr then return type(defaultExpr) == 'function' and defaultExpr() or defaultExpr end -- not nil
+              error 'unreachable: `Match` internal error: exhausted all control flow procedures'
+          end
+      end,
+      MatchBatchCo = function(...)
+          local args = { ... } ---@type unknown[]
+          local argsCount = select('#', ...)
+          MatchingCaseErrorMsg = function(c)
+              return 'unimplemented: multiple matching cases are not handled yet: ~\n'
+                  .. string.format('\tin #case: %s: ~\n\t{ args..., fu }: { %s, %s }', #c, table.concat(c, ', ', 1, #c - 1), c[#c])
+          end
+          return function(cases)
+              local defaultExpr = nil ---@type function|unknown|nil
+              local caseExpr = nil ---@type function|unknown|nil
+              local foundNoCaseMatches = nil ---@type boolean|nil
+              local function ProcessBatch(batchStart, batchEnd)
+                  local mustBreakLoop = false
+                  for i = batchStart, batchEnd do
+                      local case = cases[i]
+                      if type(case) ~= 'table' then error 'InvalidParamType: in ProcessBatch: type of `case` must be a `table`' end
+                      if case[1] == 'default' then
+                          defaultExpr = case[2]
+                      elseif #case == (argsCount + 1) then
+                          local match = true
+                          for j = 1, argsCount do
+                              if args[j] ~= case[j] then
+                                  match = false
+                                  break
+                              end
+                          end
+                          if not match then
+                              foundNoCaseMatches = true
+                          else
+                              if caseExpr ~= nil then error(MatchingCaseErrorMsg(case)) end
+                              caseExpr = case[#case]
+                              foundNoCaseMatches = false
+                              mustBreakLoop = true
+                              break
+                          end
+                      end
+                      if mustBreakLoop then break end
+                  end
+                  return mustBreakLoop
+              end
+              local numCases = #cases
+              local batchSize = IS_OPTIMIZED and M.mathlib.NegativeModulo(4, numCases) or M.mathlib.Round(numCases / 4)
+              if IS_VERBOSE then
+                  print('numCases', numCases)
+                  print('batchSize', batchSize)
+              end
+              for i = 1, numCases, batchSize do
+                  local batchEnd = math.min(i + batchSize - 1, numCases)
+                  local co = coroutine.create(function() return ProcessBatch(i, batchEnd) end)
+                  local success, result = coroutine.resume(co)
+                  if not success then
+                      error(result)
+                  elseif result then
+                      break
+                  end
+              end
+              if caseExpr ~= nil then return type(caseExpr) == 'function' and caseExpr() or caseExpr end
+              if (foundNoCaseMatches == nil or foundNoCaseMatches == true) and defaultExpr ~= nil then
+                  return type(defaultExpr) == 'function' and defaultExpr() or defaultExpr
+              end
+              error 'unreachable: `MatchCo` internal error: exhausted all control flow procedures'
+          end
+      end,
+      Switch = function(value)
+          return function(cases) ---@param cases any
+              return (cases[value] or cases.default)(value)
+          end ---@return unknown
+      end,
+      iter = {
+          Iter = function(t) return pairs(t) end,
+          Range = function(start, stop)
+              return coroutine.wrap(function()
+                  for i = start, stop do
+                      coroutine.yield(i) -- Suspend the execution of the calling coroutine.
+                  end
+              end) -- `wrap` returns a function that resumes the coroutine each time it is called.
+          end,
+          RangePro = function(start, stop)
+              local co = coroutine.create(function() M.iter.YieldCoroutineGenerator(start, stop) end) ---@type thread
+              return function() -- The iterator
+                  local code, res = coroutine.resume(co)
+                  if not code then M.errors.StatusFailed('error in RangePro coroutine `Generate()` returned *falsy* on resume: ~ ' .. res .. '\n', 1) end
+                  return res
+              end
+          end,
+          YieldCoroutineGenerator = function(start, stop)
+              if start - stop == 0 then -- Useful for recursive `Generate` functions
+                  coroutine.yield(start)
+              else
+                  for i = start, stop do
+                      coroutine.yield(i)
+                  end
+              end
+          end,
+      },
+  }
+#+end_src
+
 ** 20240702053449UTC 
 
 #+begin_src lua
@@ -87,4 +315,4 @@
   match(1, 2, 3)
   match(4, 5, 6)
   match(7, 8, 9)
-#end_src
+#+end_src
